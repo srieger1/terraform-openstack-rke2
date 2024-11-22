@@ -18,7 +18,7 @@ locals {
     #
     ###########################################################
 
-    #insecure         = true
+    insecure         = true
     auth_url         = "https://private-cloud.informatik.hs-fulda.de:5000/v3"
     object_store_url = "https://10.32.5.250:443"
     region           = "RegionOne"
@@ -42,7 +42,8 @@ module "rke2" {
   # source = "zifeo/rke2/openstack"
   # version = ""
   source = "./../.."
-  #insecure            = local.insecure
+  insecure            = local.insecure
+  #cacert_file          = base64encode(file(local.cacert_file))
 
   # must be true for single server cluster or
   # only on the first run for high-availability cluster
@@ -152,7 +153,7 @@ output "floating_ip" {
 
 provider "openstack" {
   # change to ca_path
-  #insecure    = local.insecure
+  insecure    = local.insecure
   tenant_name = var.project
   user_name   = var.username
   # checkov:skip=CKV_OPENSTACK_1
