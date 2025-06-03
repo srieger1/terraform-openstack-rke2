@@ -62,6 +62,9 @@ module "servers" {
 
   network_id    = openstack_networking_network_v2.net.id
   subnet_id     = openstack_networking_subnet_v2.servers.id
+  cluster_cidr  = var.cluster_cidr
+  service_cidr  = var.service_cidr
+  cni           = var.cni
   secgroup_id   = openstack_networking_secgroup_v2.server.id
   internal_vip  = local.internal_vip
   vip_interface = var.vip_interface
@@ -105,10 +108,10 @@ module "servers" {
         insecure            = var.insecure
       }),
       "patches/rke2-cilium.yaml" : templatefile("${path.module}/patches/rke2-cilium.yaml.tpl", {
-        operator_replica = local.operator_replica
-        apiserver_host   = local.internal_vip
-        cluster_name     = var.name
-        cluster_id       = var.cluster_id
+        operator_replica  = local.operator_replica
+        cluster_name      = var.name
+        cluster_id        = var.cluster_id
+        ff_with_kubeproxy = var.ff_with_kubeproxy
       }),
       "patches/rke2-coredns.yaml" : templatefile("${path.module}/patches/rke2-coredns.yaml.tpl", {
         operator_replica = local.operator_replica
@@ -163,9 +166,14 @@ module "servers" {
   kube_scheduler_resources          = var.kube_scheduler_resources
   kube_controller_manager_resources = var.kube_controller_manager_resources
   etcd_resources                    = var.etcd_resources
+  kube_proxy_resources              = var.kube_proxy_resources
 
   ff_autoremove_agent = null
   ff_wait_ready       = var.ff_wait_ready
+  ff_with_kubeproxy   = var.ff_with_kubeproxy
+  
+  node_taints = each.value.node_taints
+  node_labels = each.value.node_labels
 }
 
 module "agents" {
@@ -205,6 +213,9 @@ module "agents" {
 
   network_id    = openstack_networking_network_v2.net.id
   subnet_id     = openstack_networking_subnet_v2.agents.id
+  cluster_cidr  = var.cluster_cidr
+  service_cidr  = var.service_cidr
+  cni           = var.cni
   secgroup_id   = openstack_networking_secgroup_v2.agent.id
   internal_vip  = local.internal_vip
   vip_interface = var.vip_interface
@@ -212,5 +223,8 @@ module "agents" {
 
   ff_autoremove_agent = var.ff_autoremove_agent
   ff_wait_ready       = var.ff_wait_ready
-
+  ff_with_kubeproxy   = var.ff_with_kubeproxy
+ 
+  node_taints = each.value.node_taints
+  node_labels = each.value.node_labels
 }
