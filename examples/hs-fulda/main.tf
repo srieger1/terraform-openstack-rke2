@@ -120,7 +120,7 @@ EOF
       memory = "128M"
     }
   }
-  vip_interface       = "ens2"
+  #vip_interface       = "ens2"
   dns_nameservers4    = [local.dns_server]
   # enable automatically agent removal of the cluster (wait max for 30s)
   ff_autoremove_agent = "30s"
