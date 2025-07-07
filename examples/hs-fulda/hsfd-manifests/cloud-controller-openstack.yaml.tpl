@@ -6,7 +6,7 @@ metadata:
 spec:
   chart: openstack-cloud-controller-manager
   repo: https://kubernetes.github.io/cloud-provider-openstack
-  version: 2.28.3
+  version: 2.33.0
   targetNamespace: kube-system
   bootstrap: true
   valuesContent: |-

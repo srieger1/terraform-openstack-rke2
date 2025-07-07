@@ -24,8 +24,8 @@ locals {
     region           = "RegionOne"
     cacert_file      = "./os-trusted-cas"
 
-    cluster_name     = "${var.project}-k8s"
-    image_name       = "ubuntu-22.04-jammy-server-cloud-image-amd64"
+    cluster_name     = lower("${var.project}-k8s")
+    image_name       = "ubuntu-24.04-noble-server-cloud-image-amd64"
     flavor_name      = "m1.medium"
     system_user      = "ubuntu"
     floating_ip_pool = "ext_net"
@@ -33,7 +33,7 @@ locals {
     #ssh_pubkey_file  = "~/.ssh/id_ed25519.pub"
     dns_server       = "10.33.16.100"
     manifests_folder = "./hsfd-manifests"
-    rke2_version     = "v1.30.3+rke2r1"
+    rke2_version     = "v1.33.2+rke2r1"
 
     ###########################################################
 }
@@ -87,6 +87,9 @@ EOF
       rke2_version     = local.rke2_version
       rke2_volume_size = 8
       rke2_volume_device = "/dev/vdb"
+      node_taints        = {
+        "foo" = "bar:NoExecute"
+      }
     }
   ]
 
