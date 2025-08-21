@@ -32,7 +32,6 @@ locals {
     ssh_pubkey_file  = "~/.ssh/id_rsa.pub"
     #ssh_pubkey_file  = "~/.ssh/id_ed25519.pub"
     dns_server       = "10.33.16.100"
-    manifests_folder = "./hsfd-manifests"
     rke2_version     = "v1.30.3+rke2r1"
 
     ###########################################################
@@ -54,8 +53,6 @@ module "rke2" {
   # should be restricted to secure bastion
   rules_ssh_cidr      = [ "0.0.0.0/0" ]
   rules_k8s_cidr      = [ "0.0.0.0/0" ]
-  # auto load manifest from a folder (https://docs.rke2.io/advanced#auto-deploying-manifests)
-  manifests_folder    = local.manifests_folder
 
   servers = [{
     name = "controller"
