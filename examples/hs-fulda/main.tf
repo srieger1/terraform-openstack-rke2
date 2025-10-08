@@ -135,7 +135,7 @@ EOF
     mirrors = {
       "*": {
         endpoint = [
-          "https://docker.cs.hs-fulda.de"
+          "https://harbor.cs.hs-fulda.de"
         ]
       }
     }
