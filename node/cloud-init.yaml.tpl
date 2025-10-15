@@ -287,7 +287,7 @@ write_files:
       %{ endfor ~}
     %{~ endif ~}
 %{~ endif ~}
-%{ if registries != null ~}
+%{ if registries != null }
 - path: /etc/rancher/rke2/registries.yaml
   permissions: "0600"
   owner: root:root
