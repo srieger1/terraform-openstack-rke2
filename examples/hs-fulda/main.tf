@@ -130,6 +130,16 @@ EOF
 
   identity_endpoint     = local.auth_url
   object_store_endpoint = local.object_store_url
+
+  registries = {
+    mirrors = {
+      "*": {
+        endpoint = [
+          "https://harbor.cs.hs-fulda.de"
+        ]
+      }
+    }
+  }
 }
 
 variable "project" {
