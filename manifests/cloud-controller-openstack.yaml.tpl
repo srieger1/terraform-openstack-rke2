@@ -34,6 +34,7 @@ spec:
         application-credential-secret: ${app_secret}
         region: ${region}
         tenant-id: ${project_id}
+        tls-insecure: ${insecure}
       loadBalancer:
         %{~ if floating_network_id != null ~}
         floating-network-id: ${floating_network_id}

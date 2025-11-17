@@ -41,6 +41,7 @@ module "servers" {
   image_uuid       = each.value.image_uuid
   boot_volume_size = each.value.boot_volume_size
   boot_volume_type = each.value.boot_volume_type
+  registries  = var.registries
 
   availability_zones = coalesce(each.value.availability_zones, [])
   group_id           = each.value.group_id != null ? each.value.group_id : openstack_compute_servergroup_v2.servers.id
@@ -82,6 +83,7 @@ module "servers" {
         app_id           = openstack_identity_application_credential_v3.rke2.id
         app_secret       = openstack_identity_application_credential_v3.rke2.secret
         app_name         = openstack_identity_application_credential_v3.rke2.name
+        insecure         = var.insecure
       }),
       "velero.yaml" : templatefile("${path.module}/manifests/velero.yaml.tpl", {
         auth_url      = var.identity_endpoint
@@ -104,6 +106,7 @@ module "servers" {
         floating_network_id = data.openstack_networking_network_v2.floating_net.id
         lb_provider         = var.lb_provider
         cluster_name        = var.name
+        insecure            = var.insecure
       }),
       "patches/rke2-cilium.yaml" : templatefile("${path.module}/patches/rke2-cilium.yaml.tpl", {
         operator_replica  = local.operator_replica
@@ -197,6 +200,7 @@ module "agents" {
   image_uuid       = each.value.image_uuid
   boot_volume_size = each.value.boot_volume_size
   boot_volume_type = each.value.boot_volume_type
+  registries  = var.registries
 
   availability_zones = coalesce(each.value.availability_zones, [])
   group_id           = each.value.group_id != null ? each.value.group_id : openstack_compute_servergroup_v2.agents.id
