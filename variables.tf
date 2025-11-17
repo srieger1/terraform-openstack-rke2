@@ -364,3 +364,13 @@ variable "registries" {
 
   default = null
 }
+
+variable "enable_cilium_encryption" {
+  type    = bool
+  default = false
+}
+
+variable "enable_cilium_node_encryption" {
+  type    = bool
+  default = false
+}

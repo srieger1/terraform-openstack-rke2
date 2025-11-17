@@ -44,7 +44,8 @@ write_files:
 - path: /etc/systemd/system/mnt.mount
   content: |
     [Unit]
-    After=local-fs.target
+    After=local-fs-pre.target
+    Before=local-fs.target
     [Mount]
     What=${rke2_device}
     Where=/mnt
@@ -124,7 +125,7 @@ write_files:
     ls $CHARTS_DIR
     for patch in /opt/rke2/manifests/patches/*; do
       patch_name=$(basename "$patch")
-      if [ -f "$CHARTS_DIR/$patch_name" ]; then
+      if [ -f "$CHARTS_DIR/$patch_name" ] && [ "$(yq e 'length' ""$CHARTS_DIR/$patch_name")" -ne "0" ]; then
         /usr/local/bin/customize-chart.sh "$CHARTS_DIR/$patch_name" "$patch"
       fi
     done
