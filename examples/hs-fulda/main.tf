@@ -24,7 +24,7 @@ locals {
     region           = "RegionOne"
     cacert_file      = "./os-trusted-cas"
 
-    cluster_name     = "${var.project}-k8s"
+    cluster_name     = lower("${var.project}-k8s")
     image_name       = "ubuntu-22.04-jammy-server-cloud-image-amd64"
     flavor_name      = "m1.medium"
     system_user      = "ubuntu"
