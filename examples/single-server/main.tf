@@ -1,7 +1,7 @@
 module "rke2" {
   # source = "zifeo/rke2/openstack"
   # version = ""
-  source = "./../.."
+  source = "git::https://github.com/srieger1/terraform-openstack-rke2.git?ref=hsfulda-example"
 
   # must be true for single server cluster or
   # only on the first run for high-availability cluster 
