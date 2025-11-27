@@ -40,7 +40,8 @@ locals {
 module "rke2" {
   # source = "zifeo/rke2/openstack"
   # version = ""
-  source = "./../.."
+  source = "git::https://github.com/srieger1/terraform-openstack-rke2.git?ref=hsfulda-example"
+
   insecure            = local.insecure
   #cacert_file          = base64encode(file(local.cacert_file))
 
