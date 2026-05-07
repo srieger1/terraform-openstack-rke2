@@ -258,11 +258,7 @@ variable "node_taints" {
 }
 
 variable "node_labels" {
-<<<<<<< HEAD
-  type    = map(string)
-=======
   type = map(string)
->>>>>>> 17cd987b367b9b0b3020dc3a3952a3c79d6b266a
 }
 
 variable "registries" {
