@@ -25,14 +25,16 @@ locals {
     cacert_file      = "./os-trusted-cas"
 
     cluster_name     = lower("${var.project}-k8s")
-    image_name       = "ubuntu-22.04-jammy-server-cloud-image-amd64"
+    image_name       = "ubuntu-24.04-noble-server-cloud-image-amd64"
     flavor_name      = "m1.medium"
     system_user      = "ubuntu"
     floating_ip_pool = "ext_net"
-    ssh_pubkey_file  = "~/.ssh/id_rsa.pub"
-    #ssh_pubkey_file  = "~/.ssh/id_ed25519.pub"
+    #ssh_pubkey_file  = "~/.ssh/id_rsa.pub"
+    ssh_pubkey_file  = "~/.ssh/id_ed25519.pub"
     dns_server       = "10.33.16.100"
-    rke2_version     = "v1.30.3+rke2r1"
+    #rke2_version     = "v1.30.3+rke2r1" old
+    #rke2_version     = "v1.34.7+rke2r1" works
+    rke2_version     = "v1.35.4+rke2r1"
 
     ###########################################################
 }
