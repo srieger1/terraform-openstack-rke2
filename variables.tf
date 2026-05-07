@@ -147,8 +147,12 @@ variable "servers" {
     rke2_volume_size   = number
     rke2_volume_type   = optional(string)
     rke2_volume_device = optional(string)
-    node_taints = optional(map(string), {})
-    node_labels  = optional(map(string), {})  
+    node_taints = optional(list(object({
+      key    = string
+      value  = optional(string)
+      effect = string
+    })), [])
+    node_labels = optional(map(string), {})
   }))
   validation {
     condition = (
@@ -161,6 +165,10 @@ variable "servers" {
       length(toset(var.servers[*].name)) == length(var.servers[*].name)
     )
     error_message = "server nodes must have unique names"
+  }
+  validation {
+    condition     = alltrue([for s in var.servers : alltrue([for t in s.node_taints : contains(["NoSchedule", "PreferNoSchedule", "NoExecute"], t.effect)])])
+    error_message = "The taint effect must be one of: NoSchedule, PreferNoSchedule, NoExecute."
   }
 }
 
@@ -181,14 +189,22 @@ variable "agents" {
     rke2_volume_size   = number
     rke2_volume_type   = optional(string)
     rke2_volume_device = optional(string)
-    node_taints = optional(map(string), {})
-    node_labels  = optional(map(string), {})
+    node_taints = optional(list(object({
+      key    = string
+      value  = optional(string)
+      effect = string
+    })), [])
+    node_labels = optional(map(string), {})
   }))
   validation {
     condition = (
       length(toset(var.agents[*].name)) == length(var.agents[*].name)
     )
     error_message = "agent nodes must have unique names"
+  }
+  validation {
+    condition     = alltrue([for a in var.agents : alltrue([for t in a.node_taints : contains(["NoSchedule", "PreferNoSchedule", "NoExecute"], t.effect)])])
+    error_message = "The taint effect must be one of: NoSchedule, PreferNoSchedule, NoExecute."
   }
 }
 
@@ -373,4 +389,28 @@ variable "enable_cilium_encryption" {
 variable "enable_cilium_node_encryption" {
   type    = bool
   default = false
+}
+
+variable "registries" {
+  type = object({
+    mirrors = optional(map(object({
+      endpoint = list(string)
+      rewrite  = optional(map(string))
+    })))
+    configs = optional(map(object({
+      auth = optional(object({
+        username : optional(string)
+        password : optional(string)
+        token : optional(string)
+      }))
+      tls = optional(object({
+        ca_file : optional(string)
+        cert_file : optional(string)
+        key_file : optional(string)
+        insecure_skip_verify : optional(bool)
+      }))
+    })))
+  })
+
+  default = null
 }

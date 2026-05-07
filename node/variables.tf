@@ -60,15 +60,15 @@ variable "subnet_id" {
 }
 
 variable "cluster_cidr" {
-  type    = string
+  type = string
 }
 
 variable "service_cidr" {
-  type    = string
+  type = string
 }
 
 variable "cni" {
-  type    = string
+  type = string
 }
 
 variable "san" {
@@ -250,11 +250,19 @@ variable "ff_with_kubeproxy" {
 }
 
 variable "node_taints" {
-  type = map(string)
+  type = list(object({
+    key    = string
+    value  = optional(string)
+    effect = string
+  }))
 }
 
 variable "node_labels" {
+<<<<<<< HEAD
   type    = map(string)
+=======
+  type = map(string)
+>>>>>>> 17cd987b367b9b0b3020dc3a3952a3c79d6b266a
 }
 
 variable "registries" {
@@ -267,13 +275,13 @@ variable "registries" {
       auth = optional(object({
         username : optional(string)
         password : optional(string)
-        token    : optional(string)
+        token : optional(string)
       }))
       tls = optional(object({
-        ca_file                : optional(string)
-        cert_file              : optional(string)
-        key_file               : optional(string)
-        insecure_skip_verify   : optional(bool)
+        ca_file : optional(string)
+        cert_file : optional(string)
+        key_file : optional(string)
+        insecure_skip_verify : optional(bool)
       }))
     })))
   })
