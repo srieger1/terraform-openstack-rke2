@@ -1,0 +1,34 @@
+# values.yaml - development install with bundled MySQL
+wordpress:
+  siteTitle: My Blog
+  siteUrl: http://localhost:80
+  adminUser: admin
+  adminPassword: change-me
+  adminEmail: admin@example.com
+  # This is needed because we do not know our IP before it is provisioned by OpenStack DO NOT use this in production
+  configExtra: |
+    define('WP_HOME',    'http://' . $_SERVER['HTTP_HOST']);
+    define('WP_SITEURL', 'http://' . $_SERVER['HTTP_HOST']);
+
+mysql:
+  enabled: true
+  auth:
+    password: db-password
+
+persistence:
+  enabled: true
+  size: 10Gi
+
+php:
+  ini: |
+    upload_max_filesize = 64M
+    post_max_size = 64M
+    memory_limit = 256M
+
+service:
+  type: LoadBalancer
+  port: 80
+
+bootstrap:
+  enabled: true
+  permalinkStructure: /%postname%/
