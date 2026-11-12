@@ -4,11 +4,38 @@ locals {
     access_key    = openstack_identity_ec2_credential_v3.s3[0].access
     access_secret = openstack_identity_ec2_credential_v3.s3[0].secret
     bucket        = openstack_objectstorage_container_v1.etcd_snapshots[0].name
+    region        = var.object_store_region
   } : var.s3_backup
 
   external_ip      = openstack_networking_floatingip_v2.floating_ip.address
   internal_vip     = var.subnet_servers_vip != null ? var.subnet_servers_vip : cidrhost(var.subnet_servers_cidr, 4)
   operator_replica = length(var.servers) > 1 ? 2 : 1
+
+  agent_daemonset_tolerations_derived = distinct(concat(
+    flatten([
+      for a in var.agents : [
+        for t in a.node_taints : merge(
+          {
+            key      = t.key
+            effect   = t.effect
+            operator = t.value != null ? "Equal" : "Exists"
+          },
+          t.value != null ? { value = t.value } : {}
+        )
+      ]
+    ]),
+    anytrue([for a in var.agents : try(a.gpu.enabled, false)]) ? [{
+      key      = "nvidia.com/gpu"
+      operator = "Exists"
+      effect   = "NoSchedule"
+    }] : []
+  ))
+
+  agent_daemonset_tolerations = (
+    var.agent_daemonset_tolerations != null
+    ? var.agent_daemonset_tolerations
+    : local.agent_daemonset_tolerations_derived
+  )
 }
 
 resource "openstack_compute_servergroup_v2" "servers" {
@@ -61,38 +88,41 @@ module "servers" {
   keypair_name        = openstack_compute_keypair_v2.key.name
   ssh_authorized_keys = local.ssh_authorized_keys
 
-  network_id    = openstack_networking_network_v2.net.id
-  subnet_id     = openstack_networking_subnet_v2.servers.id
-  cluster_cidr  = var.cluster_cidr
-  service_cidr  = var.service_cidr
-  cni           = var.cni
-  secgroup_id   = openstack_networking_secgroup_v2.server.id
-  internal_vip  = local.internal_vip
+  network_id   = openstack_networking_network_v2.net.id
+  subnet_id    = openstack_networking_subnet_v2.servers.id
+  cluster_cidr = var.cluster_cidr
+  service_cidr = var.service_cidr
+  cni          = var.cni
+  secgroup_id  = openstack_networking_secgroup_v2.server.id
+  internal_vip = local.internal_vip
   vip_interface = var.vip_interface
-  bastion_host  = local.external_ip
-  san           = distinct(concat([local.external_ip, local.internal_vip], var.additional_san))
+  bastion_host = local.external_ip
+  san          = distinct(concat([local.external_ip, local.internal_vip], var.additional_san))
 
   manifests_folder = var.manifests_folder
   manifests = merge(
     {
       "cinder-csi.yaml" : templatefile("${path.module}/manifests/csi-cinder.yaml.tpl", {
-        operator_replica = local.operator_replica
-        auth_url         = var.identity_endpoint
-        region           = openstack_identity_application_credential_v3.rke2.region
-        project_id       = openstack_identity_application_credential_v3.rke2.project_id
-        app_id           = openstack_identity_application_credential_v3.rke2.id
-        app_secret       = openstack_identity_application_credential_v3.rke2.secret
-        app_name         = openstack_identity_application_credential_v3.rke2.name
+        operator_replica        = local.operator_replica
+        auth_url                = var.identity_endpoint
+        region                  = openstack_identity_application_credential_v3.rke2.region
+        project_id              = openstack_identity_application_credential_v3.rke2.project_id
+        app_id                  = openstack_identity_application_credential_v3.rke2.id
+        app_secret              = openstack_identity_application_credential_v3.rke2.secret
+        app_name                = openstack_identity_application_credential_v3.rke2.name
+        node_plugin_tolerations = local.agent_daemonset_tolerations
         insecure         = var.insecure
       }),
       "velero.yaml" : templatefile("${path.module}/manifests/velero.yaml.tpl", {
-        auth_url      = var.identity_endpoint
-        region        = openstack_identity_application_credential_v3.rke2.region
-        app_id        = openstack_identity_application_credential_v3.rke2.id
-        app_secret    = openstack_identity_application_credential_v3.rke2.secret
-        app_name      = openstack_identity_application_credential_v3.rke2.name
-        bucket_restic = openstack_objectstorage_container_v1.restic.name
-        bucket_velero = openstack_objectstorage_container_v1.velero.name
+        auth_url               = var.identity_endpoint
+        region                 = openstack_identity_application_credential_v3.rke2.region
+        app_id                 = openstack_identity_application_credential_v3.rke2.id
+        app_secret             = openstack_identity_application_credential_v3.rke2.secret
+        app_name               = openstack_identity_application_credential_v3.rke2.name
+        bucket_restic          = openstack_objectstorage_container_v1.restic.name
+        bucket_velero          = openstack_objectstorage_container_v1.velero.name
+        node_agent_tolerations = local.agent_daemonset_tolerations
+        insecure = var.insecure
       }),
       "cloud-controller-openstack.yaml" : templatefile("${path.module}/manifests/cloud-controller-openstack.yaml.tpl", {
         auth_url            = var.identity_endpoint
@@ -102,7 +132,7 @@ module "servers" {
         app_secret          = openstack_identity_application_credential_v3.rke2.secret
         app_name            = openstack_identity_application_credential_v3.rke2.name
         network_id          = openstack_networking_network_v2.net.id
-        subnet_id           = openstack_networking_subnet_v2.lb.id
+        subnet_id           = openstack_networking_subnet_v2.agents.id
         floating_network_id = data.openstack_networking_network_v2.floating_net.id
         lb_provider         = var.lb_provider
         cluster_name        = var.name
@@ -156,7 +186,11 @@ module "servers" {
     },
     {
       for f in fileset(path.module, "manifests/*.{yml,yaml}") : basename(f) => file("${path.module}/${f}")
+      if basename(f) != "runtimeclass-nvidia.yaml"
     },
+    anytrue([for a in var.agents : try(a.gpu.enabled && a.gpu.runtime_class, false)]) ? {
+      "runtimeclass-nvidia.yaml" = file("${path.module}/manifests/runtimeclass-nvidia.yaml")
+    } : {},
     var.manifests,
   )
 
@@ -172,6 +206,7 @@ module "servers" {
 
   node_taints = each.value.node_taints
   node_labels = each.value.node_labels
+  gpu         = {}
 }
 
 module "agents" {
@@ -210,15 +245,15 @@ module "agents" {
   keypair_name        = openstack_compute_keypair_v2.key.name
   ssh_authorized_keys = local.ssh_authorized_keys
 
-  network_id    = openstack_networking_network_v2.net.id
-  subnet_id     = openstack_networking_subnet_v2.agents.id
-  cluster_cidr  = var.cluster_cidr
-  service_cidr  = var.service_cidr
-  cni           = var.cni
-  secgroup_id   = openstack_networking_secgroup_v2.agent.id
-  internal_vip  = local.internal_vip
+  network_id   = openstack_networking_network_v2.net.id
+  subnet_id    = openstack_networking_subnet_v2.agents.id
+  cluster_cidr = var.cluster_cidr
+  service_cidr = var.service_cidr
+  cni          = var.cni
+  secgroup_id  = openstack_networking_secgroup_v2.agent.id
+  internal_vip = local.internal_vip
   vip_interface = var.vip_interface
-  bastion_host  = local.external_ip
+  bastion_host = local.external_ip
 
   ff_autoremove_agent = var.ff_autoremove_agent
   ff_wait_ready       = var.ff_wait_ready
@@ -226,4 +261,5 @@ module "agents" {
 
   node_taints = each.value.node_taints
   node_labels = each.value.node_labels
+  gpu         = each.value.gpu
 }

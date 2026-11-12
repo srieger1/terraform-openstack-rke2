@@ -6,7 +6,8 @@ metadata:
 spec:
   chart: openstack-cinder-csi
   repo: https://kubernetes.github.io/cloud-provider-openstack
-  version: 2.35.0
+  # https://artifacthub.io/packages/helm/cloud-provider-openstack/openstack-cinder-csi
+  version: 2.36.0
   targetNamespace: kube-system
   bootstrap: true
   valuesContent: |-
@@ -49,7 +50,8 @@ spec:
             memory: 32M
       plugin:
         nodePlugin:
-          tolerations: []
+          tolerations:
+            ${indent(12, yamlencode(node_plugin_tolerations))}
         controllerPlugin:
           replicas: ${operator_replica}
           nodeSelector:
