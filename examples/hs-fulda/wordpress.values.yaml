@@ -1,0 +1,18 @@
+wordpress:
+  siteTitle: Example Blog
+  adminUser: admin
+  adminEmail: admin@example.com
+  # This is needed because in this example we do not know the actual domain name
+  # DO NOT USE IN PRODUCTION!
+  configExtra: |
+    if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+         $_SERVER['HTTPS'] = 'on';
+    }
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    define('WP_HOME',    $scheme . '://' . $_SERVER['HTTP_HOST']);
+    define('WP_SITEURL', $scheme . '://' . $_SERVER['HTTP_HOST']);
+
+bootstrap:
+  siteUrl: http://localhost
+  enabled: true
+  permalinkStructure: /%postname%/
