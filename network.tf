@@ -61,6 +61,10 @@ resource "openstack_networking_floatingip_v2" "floating_ip" {
 resource "openstack_networking_floatingip_associate_v2" "fip" {
   floating_ip = openstack_networking_floatingip_v2.floating_ip.address
   port_id     = openstack_networking_port_v2.dummy.id
+  # association needs the servers subnet to be reachable from the external
+  # network via the router, otherwise Neutron rejects it with
+  # ExternalGatewayForFloatingIPNotFound on the first apply
+  depends_on = [openstack_networking_router_interface_v2.servers]
 }
 
 resource "openstack_networking_port_v2" "dummy" {
