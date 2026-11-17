@@ -1,29 +1,15 @@
 # HS-Fulda NetLab OpenStack RKE2 Example
 
-This guide outlines the steps to set up an RKE2 Kubernetes cluster on OpenStack using Terraform, based on [this repository](https://github.com/zifeo/terraform-openstack-rke2). 🚀
-
-## Attention
-
-⚠️ This example uses provided CA certificates by default. Do not use this code in a production environment. ⚠️
+This guide outlines the steps to set up an RKE2 Kubernetes cluster on OpenStack using OpenTofu (Terraform), based on [this repository](https://github.com/zifeo/tofu-openstack-rke2). 🚀
 
 ## Usage
 
 ### Requirements
 
-#### Linux
-
-The final step fetches the `kubeconfig` file for Kubernetes clients like `kubectl` and `helm` automatically using `rsync` and `yq`. Note that `rsync` is typically pre-installed on most Linux distributions. Install `yq` from [here](https://github.com/mikefarah/yq/releases).
-
-#### Windows
-
-The final step requires `rsync` and `yq`, which are not available by default on Windows. You have multiple options to handle this (see the table below).
-
-| Method                   | Description                                                                  | Commands/Instructions                                                                                                                                 |
-| ------------------------ | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **SSH**                  | Manually log in and fetch `rke2.yaml` by assigning a temporary floating IP   | `ssh ubuntu@<floating-ip>`                                                                                                                            |
-| **SCP**                  | Use `scp` to copy the `kubeconfig` file by assigning a temporary floating IP | `scp ubuntu@<floating-ip>:/etc/rancher/rke2/CloudComp<your-group-number>-k8s.rke2.yaml`                                                               |
-| **WSL/WSL2**             | Use Windows Subsystem for Linux (WSL/WSL2) to run Terraform                  | Install `yq` from [here](https://github.com/mikefarah/yq/releases).                                                                                   |
-| **Install rsync and yq** | Install `rsync` and `yq` on Windows                                          | Install `rsync` from [here](https://www.rsync.net/resources/howto/windows_rsync.html) and `yq` from [here](https://github.com/mikefarah/yq/releases). |
+- Kubectl: https://kubernetes.io/docs/tasks/tools/
+- OpenTofu: https://opentofu.org/docs/intro/install/
+- `yq`: Can be installed through most package manages (apt, winget, homebrew, etc) or [directly](https://github.com/mikefarah/yq#install)
+- Helm: https://helm.sh/docs/intro/install 
 
 ### Step 1: Clone the Repository
 
@@ -31,9 +17,9 @@ The final step requires `rsync` and `yq`, which are not available by default on 
 git clone https://github.com/srieger1/terraform-openstack-rke2.git
 ```
 
-### Step 2: Configure Terraform Variables
+### Step 2: Configure OpenTofu Variables
 
-Navigate to the `examples/hs-fulda` folder and create a `terraform.tfvars` file with your OpenStack credentials:
+Navigate to the `examples/hs-fulda` folder and create a `tofu.tfvars` file with your OpenStack credentials:
 
 ```hcl
 project  = "CloudComp<your-group-number>"
@@ -41,13 +27,13 @@ username = "CloudComp<your-group-number>"
 password = "<your-password>"
 ```
 
-### Step 3: Initialize and Apply Terraform
+### Step 3: Initialize and Apply OpenTofu
 
 Run the following commands inside the `examples/hs-fulda` folder:
 
 ```sh
-terraform init
-terraform apply
+tofu init
+tofu apply
 ```
 
 ### Step 4: Fetch kubeconfig File
@@ -64,7 +50,7 @@ Since `rsync` and `yq` are not available by default on Windows, use one of the m
 
 ### Step 5: Handle Deployment Issues
 
-If any stages fail, rerun `terraform apply` to resume the deployment. If needed, modify cluster parameters (e.g., node count) in the `main.tf` file and rerun `terraform apply`.
+If any stages fail, rerun `tofu apply` to resume the deployment. If needed, modify cluster parameters (e.g., node count) in the `main.tf` file and rerun `tofu apply`.
 
 ### Step 6: Use Your Kubernetes Cluster
 
@@ -105,7 +91,7 @@ while ($true) {
 Within about four minutes, all pods should be running in the kube-system namespace. You can then deploy workloads, such as WordPress, using `helm`:
 
 ```sh
-helm install my-release oci://registry-1.docker.io/bitnamicharts/wordpress
+helm install my-release oci://ghcr.io/helmforgedev/helm/wordpress:3.3.0 --values wordpress.values.yaml
 ```
 
 To check the deployment status:
@@ -136,13 +122,13 @@ The allocation of `EXTERNAL-IP` can take a few minutes.
 
 ### Step 7: Clean Up
 
-Before running `terraform destroy`, delete any workloads:
+Before running `tofu destroy`, delete any workloads:
 
 ```sh
 helm uninstall my-release
-terraform destroy
+tofu destroy
 ```
-**If terraform destroy is stuck:**
+**If tofu destroy is stuck:**
 Make sure that you delete the CSI volumes, load balancers with k8s in name, floating IPs, ports in the network, the subnet in the network, the network and the security groups created by the WordPress Helm Chart in OpenStack.
 
 ### Troubleshooting Tips

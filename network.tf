@@ -20,6 +20,7 @@ resource "openstack_networking_subnet_v2" "agents" {
 }
 
 resource "openstack_networking_subnet_v2" "lb" {
+  count           = var.ff_lb_subnets_compat ? 1 : 0
   name            = "${var.name}-lb-subnet"
   network_id      = openstack_networking_network_v2.net.id
   cidr            = var.subnet_lb_cidr
@@ -47,8 +48,9 @@ resource "openstack_networking_router_interface_v2" "agents" {
 }
 
 resource "openstack_networking_router_interface_v2" "lb" {
+  count     = var.ff_lb_subnets_compat ? 1 : 0
   router_id = openstack_networking_router_v2.router.id
-  subnet_id = openstack_networking_subnet_v2.lb.id
+  subnet_id = openstack_networking_subnet_v2.lb[0].id
 }
 
 resource "openstack_networking_floatingip_v2" "floating_ip" {
@@ -59,6 +61,10 @@ resource "openstack_networking_floatingip_v2" "floating_ip" {
 resource "openstack_networking_floatingip_associate_v2" "fip" {
   floating_ip = openstack_networking_floatingip_v2.floating_ip.address
   port_id     = openstack_networking_port_v2.dummy.id
+  # association needs the servers subnet to be reachable from the external
+  # network via the router, otherwise Neutron rejects it with
+  # ExternalGatewayForFloatingIPNotFound on the first apply
+  depends_on = [openstack_networking_router_interface_v2.servers]
 }
 
 resource "openstack_networking_port_v2" "dummy" {
@@ -73,4 +79,14 @@ resource "openstack_networking_port_v2" "dummy" {
     subnet_id  = openstack_networking_subnet_v2.servers.id
     ip_address = local.internal_vip
   }
+}
+
+moved {
+  from = openstack_networking_subnet_v2.lb
+  to   = openstack_networking_subnet_v2.lb[0]
+}
+
+moved {
+  from = openstack_networking_router_interface_v2.lb
+  to   = openstack_networking_router_interface_v2.lb[0]
 }

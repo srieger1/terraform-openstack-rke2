@@ -79,6 +79,11 @@ variable "subnet_servers_vip" {
   default = null
 }
 
+variable "vip_interface" {
+  type    = string
+  default = "ens3"
+}
+
 variable "subnet_agents_cidr" {
   type    = string
   default = "192.168.43.0/24"
@@ -102,11 +107,6 @@ variable "service_cidr" {
 variable "cni" {
   type    = string
   default = "cilium"
-}
-
-variable "vip_interface" {
-  type    = string
-  default = "ens3"
 }
 
 variable "dns_nameservers4" {
@@ -195,6 +195,17 @@ variable "agents" {
       effect = string
     })), [])
     node_labels = optional(map(string), {})
+    gpu = optional(object({
+      enabled = optional(bool, false)
+      driver = optional(object({
+        package      = optional(string, "nvidia-driver-550")
+        version      = optional(string)
+        preinstalled = optional(bool, false)
+      }), {})
+      toolkit_package = optional(string, "nvidia-container-toolkit")
+      toolkit_version = optional(string)
+      runtime_class   = optional(bool, true)
+    }), {})
   }))
   validation {
     condition = (
@@ -214,12 +225,14 @@ variable "s3_backup" {
     access_key    = string
     access_secret = string
     bucket        = string
+    region        = optional(string)
   })
   default = {
     endpoint      = ""
     access_key    = ""
     access_secret = ""
     bucket        = ""
+    region        = null
   }
 }
 
@@ -303,6 +316,18 @@ variable "kube_proxy_resources" {
   default = null
 }
 
+variable "agent_daemonset_tolerations" {
+  type = list(object({
+    key               = optional(string)
+    operator          = optional(string)
+    value             = optional(string)
+    effect            = optional(string)
+    tolerationSeconds = optional(number)
+  }))
+  default     = null
+  description = "Tolerations for node DaemonSets that must run on every agent (Cinder CSI nodePlugin and Velero node-agent)."
+}
+
 variable "manifests_folder" {
   type    = string
   default = ""
@@ -323,6 +348,11 @@ variable "object_store_endpoint" {
   default = ""
 }
 
+variable "object_store_region" {
+  type    = string
+  default = null
+}
+
 variable "identity_endpoint" {
   type = string
 }
@@ -330,6 +360,12 @@ variable "identity_endpoint" {
 variable "ff_write_kubeconfig" {
   type    = bool
   default = true
+}
+
+variable "ff_lb_subnets_compat" {
+  type        = bool
+  default     = false
+  description = "Enable backward compatibility for existing Load Balancers in the legacy LB subnet"
 }
 
 variable "ff_autoremove_agent" {

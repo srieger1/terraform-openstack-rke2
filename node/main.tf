@@ -78,20 +78,20 @@ resource "openstack_compute_instance_v2" "instance" {
 
   # yamlencode(yamldecode to debug yaml
   user_data = base64encode(templatefile("${path.module}/cloud-init.yaml.tpl", {
-    rke2_token    = var.rke2_token
-    rke2_version  = var.rke2_version
-    rke2_conf     = var.rke2_config != null ? var.rke2_config : ""
-    rke2_device   = var.rke2_volume_device
-    is_server     = var.is_server
-    is_first      = var.is_first && count.index == 0
-    bootstrap     = var.bootstrap && var.is_first && count.index == 0
-    internal_vip  = var.internal_vip
+    rke2_token   = var.rke2_token
+    rke2_version = var.rke2_version
+    rke2_conf    = var.rke2_config != null ? var.rke2_config : ""
+    rke2_device  = var.rke2_volume_device
+    is_server    = var.is_server
+    is_first     = var.is_first && count.index == 0
+    bootstrap    = var.bootstrap && var.is_first && count.index == 0
+    internal_vip = var.internal_vip
     vip_interface = var.vip_interface
-    node_ip       = openstack_networking_port_v2.port[count.index].all_fixed_ips[0]
-    cluster_cidr  = var.cluster_cidr
-    service_cidr  = var.service_cidr
-    cni           = var.cni
-    san           = var.is_server ? var.san : []
+    node_ip      = openstack_networking_port_v2.port[count.index].all_fixed_ips[0]
+    cluster_cidr = var.cluster_cidr
+    service_cidr = var.service_cidr
+    cni          = var.cni
+    san          = var.is_server ? var.san : []
     manifests_files = var.is_server ? merge(
       var.manifests_folder != "" ? {
         for f in fileset(var.manifests_folder, "*.{yml,yaml}") : f => base64gzip(file("${var.manifests_folder}/${f}"))
@@ -125,13 +125,16 @@ resource "openstack_compute_instance_v2" "instance" {
       try("kube-proxy-cpu=${var.kube_proxy_resources.limits.cpu}", ""),
       try("kube-proxy-memory=${var.kube_proxy_resources.limits.memory}", ""),
     ] : limit if limit != ""])
-    system_user       = var.system_user
-    authorized_keys   = var.ssh_authorized_keys
-    ff_wait_apiserver = false
-    ff_with_kubeproxy = var.ff_with_kubeproxy
-    node_taints       = [for t in var.node_taints : "${t.key}${t.value != null ? "=${t.value}" : ""}:${t.effect}"]
-    node_labels       = var.node_labels
-    registries        = var.registries
+    system_user             = var.system_user
+    customize_chart_script  = base64gzip(file("${path.module}/customize-chart.sh"))
+    customize_charts_script = base64gzip(file("${path.module}/customize-charts.sh"))
+    authorized_keys         = var.ssh_authorized_keys
+    ff_wait_apiserver       = false
+    ff_with_kubeproxy       = var.ff_with_kubeproxy
+    node_taints             = [for t in var.node_taints : "${t.key}${t.value != null ? "=${t.value}" : ""}:${t.effect}"]
+    node_labels             = var.node_labels
+    registries              = var.registries
+    gpu                     = var.gpu
   }))
 }
 

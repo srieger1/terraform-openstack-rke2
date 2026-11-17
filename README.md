@@ -24,17 +24,19 @@ defaults for running production workload.
 - Cilium networking (network policy support and no kube-proxy)
 - highly-available via kube-vip and dynamic peering (no load-balancer required)
 - out of the box support for volume snapshot and Velero
+- optional NVIDIA GPU agent pools (driver + toolkit, containerd `nvidia` runtime,
+  `RuntimeClass`)
 
 ### Versioning
 
 | Component                  | Version                                                                                                                  |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | OpenStack                  | 2024.1 Caracal (verified), maybe older version are supported too                                                         |
-| RKE2                       | [v1.35.4+rke2r1](https://github.com/rancher/rke2/releases/tag/v1.35.4+rke2r1)                                            |
-| OpenStack Cloud Controller | [v2.34.1](https://github.com/kubernetes/cloud-provider-openstack/releases/tag/openstack-cloud-controller-manager-2.34.1) |
-| OpenStack Cinder           | [v2.34.1](https://github.com/kubernetes/cloud-provider-openstack/releases/tag/openstack-cinder-csi-2.34.1)               |
-| Velero                     | [v11.3.2](https://github.com/vmware-tanzu/helm-charts/releases/tag/velero-11.3.2)                                        |
-| Kube-vip                   | [v0.7.2](https://github.com/kube-vip/kube-vip/releases/tag/v0.7.2)                                                       |
+| RKE2                       | [v1.36.2+rke2r1](https://github.com/rancher/rke2/releases/tag/v1.36.2+rke2r1)                                            |
+| OpenStack Cloud Controller | [v2.36.0](https://github.com/kubernetes/cloud-provider-openstack/releases/tag/openstack-cloud-controller-manager-2.36.0) |
+| OpenStack Cinder           | [v2.36.0](https://github.com/kubernetes/cloud-provider-openstack/releases/tag/openstack-cinder-csi-2.36.0)               |
+| Velero                     | [v12.2.4](https://github.com/vmware-tanzu/helm-charts/releases/tag/velero-12.2.4)                                        |
+| Kube-vip                   | [v1.2.4](https://github.com/kube-vip/kube-vip/releases/tag/v1.2.4)                                                       |
 
 ## Getting started
 
@@ -114,6 +116,118 @@ port collision.
 See their technical [documentation](https://docs.infomaniak.cloud) and
 [pricing](https://www.infomaniak.com/fr/hebergement/public-cloud/tarifs).
 
+## GPU nodes
+
+Agent pools can opt into NVIDIA GPU support. The module answers one question per
+pool — **does this node have a GPU?** When enabled, it installs the runtime
+stack on the node so containers can use the GPU via RKE2’s containerd.
+
+This does **not** deploy the [NVIDIA GPU Operator](https://docs.rke2.io/add-ons/gpu_operators)
+(device plugin, DCGM, NRI/CDI). Without the operator, `nvidia.com/gpu` is not an
+allocatable resource; workloads must set `runtimeClassName: nvidia` and
+scheduling isolation is left to your existing `node_taints` / `node_labels`.
+
+When any agent pool has `gpu.enabled = true`, node DaemonSets that must run on
+every agent (Cinder CSI nodePlugin and Velero node-agent) automatically gain an
+`nvidia.com/gpu` toleration (and any agent `node_taints`) so volumes and
+pod-volume backups work on GPU nodes. Override with
+`agent_daemonset_tolerations` if needed.
+
+### Define a GPU agent pool
+
+```hcl
+agents = [
+  {
+    name        = "example-gpu"
+    nodes_count = 1
+
+    # Infomaniak: GPU flavors are often project-gated (e.g. nvl4-* for L4).
+    # Enable them with support before terraform apply.
+    flavor_name = "nvl4-a8-ram16-disk50-perf1"
+    # Infomaniak does not ship a GPU-ready image — use a standard Ubuntu image.
+    image_name  = "Ubuntu 24.04 LTS Noble Numbat"
+    system_user = "ubuntu"
+
+    boot_volume_size = 40
+    rke2_version     = "v1.35.6+rke2r1"
+    rke2_volume_size = 64
+
+    # Optional: keep GPU workloads off other pools
+    # node_taints = [{ key = "nvidia.com/gpu", value = "true", effect = "NoSchedule" }]
+    # node_labels = { "nvidia.com/gpu.present" = "true" }
+
+    gpu = {
+      enabled = true
+      # defaults:
+      # driver = { package = "nvidia-driver-550", version = null, preinstalled = false }
+      # toolkit_package = "nvidia-container-toolkit"
+      # toolkit_version = null  # set to pin, e.g. "1.17.8-1"
+      # runtime_class   = true  # deploys a cluster RuntimeClass named "nvidia"
+    }
+  }
+]
+```
+
+| Option | Default | Meaning |
+| ------ | ------- | ------- |
+| `enabled` | `false` | Turn on GPU cloud-init on this pool |
+| `driver.package` | `nvidia-driver-550` | Apt package for the NVIDIA kernel driver (Ubuntu 24.04 + L4) |
+| `driver.version` | `null` | Optional apt version pin for `driver.package` |
+| `driver.preinstalled` | `false` | Skip driver install if the image already has it |
+| `toolkit_package` | `nvidia-container-toolkit` | Provides `nvidia-container-runtime` |
+| `toolkit_version` | `null` | Optional apt version pin for `toolkit_package` |
+| `runtime_class` | `true` | Ship a cluster `RuntimeClass` (`handler: nvidia`) when any pool requests it |
+
+Control-plane (`servers`) pools do not get GPU setup in this version.
+
+### What the module does on the node
+
+1. Adds the NVIDIA container-toolkit apt repository (when GPU is enabled).
+2. Installs the driver and toolkit packages (unless `preinstalled = true`).
+3. Always reboots once after a fresh driver install so the kernel module loads
+   (drivers are kernel-sensitive).
+4. Writes RKE2 containerd templates (`config.toml.tmpl` /
+   `config-v3.toml.tmpl`) registering the `nvidia` runtime
+   (`{{ template "base" . }}` — do not hand-edit generated `config.toml`).
+5. Puts the toolkit on the `rke2-agent` PATH via `/etc/default/rke2-agent`.
+6. Starts `rke2-agent` only after GPU setup succeeds.
+
+If you use `ff_wait_ready = true`, expect a longer first boot on GPU nodes
+because of the driver reboot; Terraform’s wait can time out during that window.
+
+### Verify on a GPU node
+
+```bash
+lsmod | grep nvidia
+cat /proc/driver/nvidia/version
+command -v nvidia-container-runtime
+grep -A5 nvidia /var/lib/rancher/rke2/agent/etc/containerd/config.toml
+kubectl get runtimeclass nvidia
+```
+
+Example pod (V1 — runtime class only; GPU resource limits need the operator):
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-smi
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+  containers:
+    - name: cuda
+      image: nvidia/cuda:12.4.1-base-ubuntu22.04
+      command: ["nvidia-smi"]
+```
+
+### Later: GPU Operator (V2)
+
+With the NVIDIA GPU Operator (NRI/CDI on recent RKE2/containerd), the manual
+containerd template and `RuntimeClass` become unnecessary and
+`nvidia.com/gpu` becomes allocatable. That path is intentionally out of scope
+for this module version.
+
 ## More on RKE2 & OpenStack
 
 [RKE2 cheat sheet](https://gist.github.com/superseb/3b78f47989e0dbc1295486c186e944bf)
@@ -182,7 +296,7 @@ metadata:
 spec:
   containers:
     - name: kube-vip
-      image: ghcr.io/kube-vip/kube-vip:v0.7.2
+      image: ghcr.io/kube-vip/kube-vip:v1.2.4
       imagePullPolicy: IfNotPresent
       args:
         - manager
@@ -191,9 +305,7 @@ spec:
           value: "true"
         - name: port
           value: "6443"
-        - name: vip_interface
-          value: ens3
-        - name: vip_cidr
+        - name: vip_subnet
           value: "32"
         - name: cp_enable
           value: "true"

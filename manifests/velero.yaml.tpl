@@ -6,23 +6,20 @@ metadata:
 spec:
   chart: velero
   repo: https://vmware-tanzu.github.io/helm-charts
-  version: 11.3.2
+  version: 12.2.4
   targetNamespace: velero
   valuesContent: |-
     image:
       repository: docker.io/velero/velero
-      tag: v1.17.1
+      tag: v1.18.4
       pullPolicy: IfNotPresent
     initContainers:
       - name: velero-plugin-for-openstack
-        image: docker.io/lirt/velero-plugin-for-openstack:v0.8.0
+        image: docker.io/lirt/velero-plugin-for-openstack:v0.8.2
         imagePullPolicy: IfNotPresent
         volumeMounts:
           - mountPath: /target
             name: plugins
-    tolerations:
-      - key: node-role.kubernetes.io/control-plane
-        effect: NoSchedule
     resources:
       requests:
         cpu: 100m
@@ -31,8 +28,8 @@ spec:
         memory: 256Mi
     kubectl:
       image:
-        repository: docker.io/bitnamilegacy/kubectl
-        tag: "1.29-debian-11"
+        repository: docker.io/alpine/kubectl
+        tag: "1.37.2"
     configuration:
       namespace: velero
       features: EnableCSI
@@ -49,7 +46,7 @@ spec:
           provider: csi
       extraEnvVars:
         - name: OS_AUTH_URL
-          value: "${auth_url}/v3"
+          value: "${auth_url}"
         - name: OS_APPLICATION_CREDENTIAL_ID
           value: "${app_id}"
         - name: OS_APPLICATION_CREDENTIAL_NAME
@@ -58,6 +55,7 @@ spec:
           value: "${app_secret}"
         - name: OS_CLOUD
           value: self
+
     credentials:
       # for community.openstack.org/openstack
       secretContents:
@@ -66,7 +64,7 @@ spec:
             self:
               region_name: ${region}
               auth:
-                auth_url: ${auth_url}/v3
+                auth_url: ${auth_url}
                 application_credential_id: ${app_id}
                 application_credential_name: ${app_name}
                 application_credential_secret: ${app_secret}
@@ -89,6 +87,8 @@ spec:
       podVolumePath: /var/lib/kubelet/pods
       containerSecurityContext:
         privileged: false
+      tolerations:
+        ${indent(8, yamlencode(node_agent_tolerations))}
       resources:
         requests:
           cpu: 100m
