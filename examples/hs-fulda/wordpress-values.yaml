@@ -9,15 +9,33 @@ wordpress:
   configExtra: |
     define('WP_HOME',    'http://' . $_SERVER['HTTP_HOST']);
     define('WP_SITEURL', 'http://' . $_SERVER['HTTP_HOST']);
+  # HTTPS alternative:
+  #configExtra: |
+  #  if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+  #       $_SERVER['HTTPS'] = 'on';
+  #  }
+  #  $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+  #  define('WP_HOME',    $scheme . '://' . $_SERVER['HTTP_HOST']);
+  #  define('WP_SITEURL', $scheme . '://' . $_SERVER['HTTP_HOST']);
 
 mysql:
   enabled: true
   auth:
     password: db-password
+  # Ubuntu 26.04 nodes inject a containerd AppArmor profile that denies sending
+  # signals inside containers. mysqld's initialization-exit path (unireg_abort ->
+  # thread joins) relies on signals and hangs forever, leaving a half-initialized
+  # datadir; the startup probe then kills it and MySQL crash-loops (MY-012960).
+  # Run MySQL without AppArmor confinement until the node image/profile is fixed.
+  # fix for now:
+  podSecurityContext:
+    appArmorProfile:
+      type: Unconfined
 
 persistence:
   enabled: true
   size: 10Gi
+  # potentially use storageClass Delete for demo?
 
 php:
   ini: |
@@ -25,10 +43,12 @@ php:
     post_max_size = 64M
     memory_limit = 256M
 
+# create a load balalncer in OpenStack for the # https://kubernetes.io/docs/concepts/services-networking/service/
 service:
   type: LoadBalancer
   port: 80
 
 bootstrap:
+  # siteUrl: http://localhost
   enabled: true
   permalinkStructure: /%postname%/

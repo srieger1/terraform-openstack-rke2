@@ -91,7 +91,7 @@ while ($true) {
 Within about four minutes, all pods should be running in the kube-system namespace. You can then deploy workloads, such as WordPress, using `helm`:
 
 ```sh
-helm install my-release oci://ghcr.io/helmforgedev/helm/wordpress:3.3.0 --values wordpress.values.yaml
+helm install my-release oci://ghcr.io/helmforgedev/helm/wordpress:3.3.0 --values wordpress-values.yaml
 ```
 
 To check the deployment status:
@@ -147,6 +147,37 @@ Examples:
 - Pods: `kubectl describe pod <pod-name> -n <namespace>`
 - Services: `kubectl describe service <service-name> -n <namespace>`
 - Deployments: `kubectl describe deployment <deployment-name> -n <namespace>`
+
+#### MySQL Crash-Loops on First Start (`MY-012960`)
+
+On Ubuntu 26.04 (and any node whose container runtime injects an AppArmor profile that
+denies sending signals inside containers), `mysqld --initialize` completes its work but
+then hangs forever in its shutdown/thread-join path (signals it sends are denied by
+AppArmor). The startup probe eventually kills the container, leaving a half-initialized
+data directory, and every restart crash-loops with
+`Cannot create redo log files because data files are corrupt ...` ([MY-012960]).
+
+Fix: run MySQL without AppArmor confinement — already set in `wordpress-values.yaml`:
+
+```yaml
+mysql:
+  podSecurityContext:
+    appArmorProfile:
+      type: Unconfined
+```
+
+Then delete the release and its corrupt volume and reinstall:
+
+```sh
+helm uninstall my-release
+kubectl delete pvc data-my-release-mysql-0
+helm install my-release oci://ghcr.io/helmforgedev/helm/wordpress:3.3.0 --values wordpress-values.yaml
+```
+
+Note: because the `csi-cinder-retain` storage class uses the `Retain` reclaim policy, the
+deleted PVC's PV (and its Cinder volume) remains behind in `Released` state and keeps
+consuming your OpenStack volume quota. Delete it with `kubectl delete pv <pv-name>` and
+`openstack volume delete <volume-id>` if you need the quota back.
 
 #### Check Pod Logs
 

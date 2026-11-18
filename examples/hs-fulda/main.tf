@@ -27,7 +27,8 @@ locals {
     region           = "RegionOne"
 
     cluster_name     = lower("${var.project}-k8s")
-    image_name       = "ubuntu-24.04-noble-server-cloud-image-amd64"
+    #image_name       = "ubuntu-24.04-noble-server-cloud-image-amd64"
+    image_name       = "ubuntu-26.04-resolute-server-cloud-image-amd64"
     flavor_name      = "m1.medium"
     system_user      = "ubuntu"
     floating_ip_pool = "ext_net"
@@ -36,7 +37,8 @@ locals {
     dns_server       = "10.33.16.100"
     #rke2_version     = "v1.30.3+rke2r1" old
     #rke2_version     = "v1.34.7+rke2r1" works
-    rke2_version     = "v1.35.4+rke2r1"
+    #rke2_version     = "v1.35.4+rke2r1"
+    rke2_version     = "v1.36.2+rke2r1"
 
     ###########################################################
 }
