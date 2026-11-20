@@ -8,8 +8,12 @@ This guide outlines the steps to set up an RKE2 Kubernetes cluster on OpenStack 
 
 - Kubectl: https://kubernetes.io/docs/tasks/tools/
 - OpenTofu: https://opentofu.org/docs/intro/install/
-- `yq`: Can be installed through most package manages (apt, winget, homebrew, etc) or [directly](https://github.com/mikefarah/yq#install)
-- Helm: https://helm.sh/docs/intro/install 
+- `yq`: Can be installed through most package manages (apt, winget, homebrew, etc) or [directly](https://github.com/mikefarah/yq#install) 
+- Helm: https://helm.sh/docs/intro/install
+- SSH Key under `~/.ssh` (See [ssh-keygen](https://linux.die.net/man/1/ssh-keygen))
+
+> [!CAUTION]
+> When using **Arch Linux** make sure to install the [correct yq package](https://archlinux.org/packages/extra/x86_64/go-yq/) as the regular `yq` package does not work
 
 ### Step 1: Clone the Repository
 
